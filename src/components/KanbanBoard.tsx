@@ -2,7 +2,7 @@ import { DndContext, DragEndEvent, closestCorners } from '@dnd-kit/core';
 import { SortableContext, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Filter, Plus, Settings, Paperclip } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 
 import { loadBoard, saveBoard } from '../api';
@@ -101,7 +101,10 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: (t: Task) => void }) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`mb-2 cursor-pointer rounded border bg-white p-2 shadow-sm ${deadlineClass}`}
+      className={`mb-2 cursor-pointer rounded border bg-white p-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${deadlineClass}`}
+      role="listitem"
+      tabIndex={0}
+      aria-label={`${task.title}, Abteilung ${task.division}, Priorität ${task.priority}${task.dueDate ? `, fällig ${new Date(task.dueDate).toLocaleDateString('de-CH')}` : ''}`}
       onClick={() => onEdit(task)}
     >
       <div className="font-medium">{task.title}</div>
@@ -119,8 +122,12 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: (t: Task) => void }) {
         )}
       </div>
       {task.emails && task.emails.length > 0 && (
-        <div className="mt-1 flex items-center gap-1 text-xs text-blue-600">
-          <Paperclip className="h-3 w-3" /> {task.emails.length} Mail
+        <div
+          className="mt-1 flex items-center gap-1 text-xs text-blue-600"
+          aria-label={`${task.emails.length} E-Mail-Anhänge`}
+        >
+          <Paperclip className="h-3 w-3" aria-hidden="true" />
+          {task.emails.length} Mail
         </div>
       )}
     </div>
@@ -149,15 +156,24 @@ function ColumnComponent({
       {...attributes}
       {...listeners}
       className="flex min-w-[260px] flex-1 flex-col rounded border bg-gray-50 p-4"
+      role="region"
+      aria-labelledby={`col-${column.id}-title`}
     >
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{column.title}</h2>
-        <span className="text-xl text-gray-500">…</span>
+        <h2 id={`col-${column.id}-title`} className="text-lg font-semibold">
+          {column.title}{' '}
+          <span className="text-sm text-gray-500">({tasks.length})</span>
+        </h2>
+        <span className="text-xl text-gray-500" aria-hidden="true">
+          …
+        </span>
       </div>
       <SortableContext items={column.taskIds}>
-        {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} onEdit={onEditTask} />
-        ))}
+        <div role="list">
+          {tasks.map((task) => (
+            <TaskCard key={task.id} task={task} onEdit={onEditTask} />
+          ))}
+        </div>
       </SortableContext>
       {tasks.length === 0 && (
         <div className="mt-2 text-sm text-gray-500">
@@ -191,13 +207,17 @@ function TaskForm({
   );
 
   return (
-  <div className="fixed inset-0 flex items-center justify-center bg-black/30">
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        const id = initial?.id ?? `task-${Date.now()}`;
-        onSave({
-          id,
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-black/30"
+      role="dialog"
+      aria-modal="true"
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const id = initial?.id ?? `task-${Date.now()}`;
+          onSave({
+            id,
           title,
           division,
           priority,
@@ -206,88 +226,115 @@ function TaskForm({
           emails,
         });
       }}
-      className="w-80 space-y-2 rounded bg-white p-4"
-    >
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Titel"
-        className="w-full border p-1"
-        required
-      />
-      <select
-        value={division}
-        onChange={(e) => setDivision(e.target.value)}
-        className="w-full border p-1"
+        className="w-80 space-y-2 rounded bg-white p-4"
       >
-        {divisions.map((d) => (
-          <option key={d}>{d}</option>
-        ))}
-      </select>
-      <select
-        value={priority}
-        onChange={(e) => setPriority(e.target.value as Task['priority'])}
-        className="w-full border p-1"
-      >
-        <option value="low">low</option>
-        <option value="medium">medium</option>
-        <option value="high">high</option>
-        <option value="urgent">urgent</option>
-      </select>
-      <label className="block text-sm">Start</label>
-      <input
-        type="date"
-        value={startDate}
-        onChange={(e) => setStartDate(e.target.value)}
-        className="w-full border p-1"
-      />
-      <label className="block text-sm">Fällig</label>
-      <input
-        type="date"
-        value={dueDate}
-        onChange={(e) => setDueDate(e.target.value)}
-        className="w-full border p-1"
-      />
-      <div>
-        <label className="block text-sm">E-Mail-Anhänge</label>
+        <label className="block text-sm" htmlFor="title">
+          Titel
+        </label>
         <input
-          type="file"
-          multiple
-          accept=".eml,.msg"
-          onChange={(e) =>
-            setEmails(
-              Array.from(e.target.files || []).map((f) => ({ name: f.name })),
-            )
-          }
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full border p-1"
+          required
+        />
+        <label className="block text-sm" htmlFor="division">
+          Abteilung
+        </label>
+        <select
+          id="division"
+          value={division}
+          onChange={(e) => setDivision(e.target.value)}
+          className="w-full border p-1"
+        >
+          {divisions.map((d) => (
+            <option key={d}>{d}</option>
+          ))}
+        </select>
+        <label className="block text-sm" htmlFor="priority">
+          Priorität
+        </label>
+        <select
+          id="priority"
+          value={priority}
+          onChange={(e) => setPriority(e.target.value as Task['priority'])}
+          className="w-full border p-1"
+        >
+          <option value="low">low</option>
+          <option value="medium">medium</option>
+          <option value="high">high</option>
+          <option value="urgent">urgent</option>
+        </select>
+        <label className="block text-sm" htmlFor="start">
+          Start
+        </label>
+        <input
+          id="start"
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
           className="w-full border p-1"
         />
-        {emails.length > 0 && (
-          <ul className="mt-1 text-xs">
-            {emails.map((m) => (
-              <li key={m.name}>📎 {m.name}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <div className="flex justify-end gap-2">
-        {initial && onDelete && (
+        <label className="block text-sm" htmlFor="due">
+          Fällig
+        </label>
+        <input
+          id="due"
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+          className="w-full border p-1"
+        />
+        <div>
+          <label className="block text-sm" htmlFor="emails">
+            E-Mail-Anhänge
+          </label>
+          <input
+            id="emails"
+            type="file"
+            multiple
+            accept=".eml,.msg"
+            onChange={(e) =>
+              setEmails(
+                Array.from(e.target.files || []).map((f) => ({ name: f.name })),
+              )
+            }
+            className="w-full border p-1"
+          />
+          {emails.length > 0 && (
+            <ul className="mt-1 text-xs">
+              {emails.map((m) => (
+                <li key={m.name}>📎 {m.name}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="flex justify-end gap-2">
+          {initial && onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(initial.id)}
+              className="text-red-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Löschen
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => onDelete(initial.id)}
-            className="text-red-600"
+            onClick={onCancel}
+            className="focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            Löschen
+            Abbrechen
           </button>
-        )}
-        <button type="button" onClick={onCancel}>
-          Abbrechen
-        </button>
-        <button type="submit" className="bg-blue-500 px-2 text-white">
-          Speichern
-        </button>
-      </div>
-    </form>
-  </div>
+          <button
+            type="submit"
+            className="bg-blue-500 px-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Speichern
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -328,6 +375,7 @@ export function KanbanBoard() {
   const [filterPriority, setFilterPriority] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [search, setSearch] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const addColumn = (title: string) => {
     const id = `col-${Date.now()}`;
@@ -362,6 +410,29 @@ export function KanbanBoard() {
       // ignore errors
     });
   }, [tasks, columns, columnOrder]);
+
+  useEffect(() => {
+    const keyHandler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return;
+      if (e.key === 'n') {
+        e.preventDefault();
+        setEditing({
+          id: '',
+          title: '',
+          division: divisions[0],
+          priority: 'low',
+          emails: [],
+        });
+      }
+      if (e.key === '/') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', keyHandler);
+    return () => window.removeEventListener('keydown', keyHandler);
+  }, [setEditing]);
 
   const findColumn = (taskId: string) => {
     for (const column of Object.values(columns)) {
@@ -447,20 +518,26 @@ export function KanbanBoard() {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Kanban Board</h1>
         <div className="flex items-center gap-2">
+          <label htmlFor="search" className="sr-only">
+            Suchen
+          </label>
           <input
+            id="search"
+            ref={searchRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Suchen..."
             className="rounded border px-2 py-1"
           />
           <button
-            className="flex items-center gap-1 rounded border px-2 py-1"
+            className="flex items-center gap-1 rounded border px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
             onClick={() => setShowFilters((v) => !v)}
+            aria-expanded={showFilters}
           >
             <Filter className="h-4 w-4" /> Filter
           </button>
           <button
-            className="flex items-center gap-1 rounded bg-blue-600 px-3 py-1 text-white"
+            className="flex items-center gap-1 rounded bg-blue-600 px-3 py-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             onClick={() =>
               setEditing({
                 id: '',
@@ -470,11 +547,12 @@ export function KanbanBoard() {
                 emails: [],
               })
             }
+            aria-label="Neue Aufgabe"
           >
             <Plus className="h-4 w-4" /> Neu (N)
           </button>
           <button
-            className="rounded border p-2"
+            className="rounded border p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             onClick={openSettingsWindow}
             aria-label="Einstellungen"
           >
