@@ -2,8 +2,13 @@ import { DndContext, DragEndEvent, closestCorners } from '@dnd-kit/core';
 import { SortableContext, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom/client';
 
 import { loadBoard, saveBoard } from '../api';
+
+interface EmailAttachment {
+  name: string;
+}
 
 interface Task {
   id: string;
@@ -12,7 +17,7 @@ interface Task {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   startDate?: string;
   dueDate?: string;
-  emails?: string[];
+  emails?: EmailAttachment[];
 }
 
 interface Column {
@@ -22,6 +27,20 @@ interface Column {
 }
 
 const divisions = ['Software', 'Metal', 'Plastic', 'Service'];
+
+const divisionColors: Record<string, string> = {
+  Software: 'bg-purple-200 text-purple-700',
+  Metal: 'bg-green-200 text-green-700',
+  Plastic: 'bg-yellow-200 text-yellow-700',
+  Service: 'bg-pink-200 text-pink-700',
+};
+
+const priorityColors: Record<Task['priority'], string> = {
+  low: 'bg-gray-200 text-gray-700',
+  medium: 'bg-blue-200 text-blue-700',
+  high: 'bg-orange-200 text-orange-700',
+  urgent: 'bg-red-200 text-red-700',
+};
 
 const initialTasks: Record<string, Task> = {
   'task-1': {
@@ -36,6 +55,7 @@ const initialTasks: Record<string, Task> = {
     division: 'Metal',
     priority: 'medium',
     dueDate: '2024-08-30',
+    emails: [{ name: 'auftrag.eml' }],
   },
   'task-3': {
     id: 'task-3',
@@ -72,22 +92,41 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: (t: Task) => void }) {
     transform: CSS.Transform.toString(transform),
     transition,
   };
+  let deadlineClass = '';
+  if (task.dueDate) {
+    const diff =
+      (new Date(task.dueDate).getTime() - new Date().getTime()) /
+      (1000 * 60 * 60 * 24);
+    if (diff < 0) deadlineClass = 'border-red-500 bg-red-50';
+    else if (diff <= 2) deadlineClass = 'border-orange-400 bg-orange-50';
+  }
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className="mb-2 cursor-pointer rounded bg-white p-2 shadow"
+      className={`mb-2 cursor-pointer rounded border bg-white p-2 shadow ${deadlineClass}`}
       onClick={() => onEdit(task)}
     >
       <div className="font-medium">{task.title}</div>
-      <div className="text-xs text-gray-500">
-        {task.division} • {task.priority}
-        {task.dueDate ? ` • Fällig ${task.dueDate}` : ''}
+      <div className="mt-1 flex flex-wrap gap-1 text-xs">
+        <span className={`rounded px-1 ${divisionColors[task.division]}`}>
+          {task.division}
+        </span>
+        <span className={`rounded px-1 ${priorityColors[task.priority]}`}>
+          {task.priority}
+        </span>
+        {task.dueDate && (
+          <span className="rounded bg-gray-200 px-1 text-gray-700">
+            Fällig {task.dueDate}
+          </span>
+        )}
       </div>
       {task.emails && task.emails.length > 0 && (
-        <div className="mt-1 text-xs text-blue-500">📧 {task.emails[0]}</div>
+        <div className="mt-1 text-xs text-blue-600">
+          📎 {task.emails.length} Mail{task.emails.length > 1 ? 's' : ''}
+        </div>
       )}
     </div>
   );
@@ -144,7 +183,9 @@ function TaskForm({
   );
   const [startDate, setStartDate] = useState(initial?.startDate ?? '');
   const [dueDate, setDueDate] = useState(initial?.dueDate ?? '');
-  const [emails, setEmails] = useState(initial?.emails?.join(',') ?? '');
+  const [emails, setEmails] = useState<EmailAttachment[]>(
+    initial?.emails ?? [],
+  );
 
   return (
   <div className="fixed inset-0 flex items-center justify-center bg-black/30">
@@ -159,10 +200,7 @@ function TaskForm({
           priority,
           startDate: startDate || undefined,
           dueDate: dueDate || undefined,
-          emails: emails
-            .split(',')
-            .map((m) => m.trim())
-            .filter(Boolean),
+          emails,
         });
       }}
       className="w-80 space-y-2 rounded bg-white p-4"
@@ -207,12 +245,27 @@ function TaskForm({
         onChange={(e) => setDueDate(e.target.value)}
         className="w-full border p-1"
       />
-      <textarea
-        value={emails}
-        onChange={(e) => setEmails(e.target.value)}
-        placeholder="E-Mails (comma separated)"
-        className="w-full border p-1"
-      />
+      <div>
+        <label className="block text-sm">E-Mail-Anhänge</label>
+        <input
+          type="file"
+          multiple
+          accept=".eml,.msg"
+          onChange={(e) =>
+            setEmails(
+              Array.from(e.target.files || []).map((f) => ({ name: f.name })),
+            )
+          }
+          className="w-full border p-1"
+        />
+        {emails.length > 0 && (
+          <ul className="mt-1 text-xs">
+            {emails.map((m) => (
+              <li key={m.name}>📎 {m.name}</li>
+            ))}
+          </ul>
+        )}
+      </div>
       <div className="flex justify-end gap-2">
         {initial && onDelete && (
           <button
@@ -235,20 +288,32 @@ function TaskForm({
   );
 }
 
-function SettingsMenu({ onAddColumn }: { onAddColumn: (title: string) => void }) {
+function SettingsWindow() {
   return (
-    <div className="absolute right-4 top-12 w-48 rounded border bg-white p-4 shadow">
+    <div className="p-4">
+      <h2 className="mb-4 text-lg font-semibold">Einstellungen</h2>
       <button
-        className="w-full text-left"
+        className="rounded bg-blue-500 px-2 py-1 text-white"
         onClick={() => {
           const title = prompt('Spaltenname');
-          if (title) onAddColumn(title);
+          if (title && window.opener) {
+            window.opener.postMessage({ type: 'addColumn', title }, '*');
+          }
         }}
       >
         Spalte hinzufügen
       </button>
     </div>
   );
+}
+
+function openSettingsWindow() {
+  const win = window.open('', '', 'width=400,height=300');
+  if (!win) return;
+  win.document.title = 'Einstellungen';
+  const container = win.document.createElement('div');
+  win.document.body.appendChild(container);
+  ReactDOM.createRoot(container).render(<SettingsWindow />);
 }
 
 export function KanbanBoard() {
@@ -258,7 +323,20 @@ export function KanbanBoard() {
   const [editing, setEditing] = useState<Task | null>(null);
   const [filterDivision, setFilterDivision] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
-  const [showSettings, setShowSettings] = useState(false);
+
+  const addColumn = (title: string) => {
+    const id = `col-${Date.now()}`;
+    setColumns((prev) => ({ ...prev, [id]: { id, title, taskIds: [] } }));
+    setColumnOrder((prev) => [...prev, id]);
+  };
+
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'addColumn') addColumn(e.data.title);
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
 
   useEffect(() => {
     loadBoard()
@@ -359,12 +437,6 @@ export function KanbanBoard() {
     setEditing(null);
   };
 
-  const addColumn = (title: string) => {
-    const id = `col-${Date.now()}`;
-    setColumns({ ...columns, [id]: { id, title, taskIds: [] } });
-    setColumnOrder([...columnOrder, id]);
-  };
-
   return (
     <DndContext collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
       <div className="mb-4 flex items-center gap-2">
@@ -407,11 +479,10 @@ export function KanbanBoard() {
         </select>
         <button
           className="ml-auto border px-2"
-          onClick={() => setShowSettings((s) => !s)}
+          onClick={openSettingsWindow}
         >
           Einstellungen
         </button>
-        {showSettings && <SettingsMenu onAddColumn={addColumn} />}
       </div>
       <SortableContext items={columnOrder}>
         <div className="flex w-full gap-4">
