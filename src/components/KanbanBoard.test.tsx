@@ -8,12 +8,16 @@ describe('KanbanBoard', () => {
   it('renders initial columns and tasks', () => {
     render(<KanbanBoard />);
     // Column titles
-    expect(screen.getByText('To Do')).toBeInTheDocument();
-    expect(screen.getByText('In Progress')).toBeInTheDocument();
+    expect(screen.getByText('Backlog')).toBeInTheDocument();
+    expect(screen.getByText('Zu erledigen')).toBeInTheDocument();
+    expect(screen.getByText('In Bearbeitung')).toBeInTheDocument();
+    expect(screen.getByText('Review')).toBeInTheDocument();
     expect(screen.getByText('Done')).toBeInTheDocument();
     // Task titles
-    expect(screen.getByText('First task')).toBeInTheDocument();
-    expect(screen.getByText('Second task')).toBeInTheDocument();
-    expect(screen.getByText('Third task')).toBeInTheDocument();
+    expect(
+      screen.getByText('Qualitätskontrolle Metallteile'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('CNC Maschine kalibrieren')).toBeInTheDocument();
+    expect(screen.getByText('Dashboard überarbeiten')).toBeInTheDocument();
   });
 });

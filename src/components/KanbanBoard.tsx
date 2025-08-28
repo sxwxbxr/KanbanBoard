@@ -1,6 +1,7 @@
 import { DndContext, DragEndEvent, closestCorners } from '@dnd-kit/core';
 import { SortableContext, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Filter, Plus, Settings, Paperclip } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -45,45 +46,39 @@ const priorityColors: Record<Task['priority'], string> = {
 const initialTasks: Record<string, Task> = {
   'task-1': {
     id: 'task-1',
-    title: 'First task',
-    division: 'Software',
-    priority: 'low',
+    title: 'Qualitätskontrolle Metallteile',
+    division: 'Metal',
+    priority: 'medium',
+    dueDate: '2024-09-28',
   },
   'task-2': {
     id: 'task-2',
-    title: 'Second task',
-    division: 'Metal',
-    priority: 'medium',
-    dueDate: '2024-08-30',
-    emails: [{ name: 'auftrag.eml' }],
+    title: 'CNC Maschine kalibrieren',
+    division: 'Service',
+    priority: 'high',
+    emails: [{ name: 'wartung.eml' }],
   },
   'task-3': {
     id: 'task-3',
-    title: 'Third task',
-    division: 'Plastic',
-    priority: 'high',
+    title: 'Dashboard überarbeiten',
+    division: 'Software',
+    priority: 'low',
   },
 };
 
 const initialColumns: Record<string, Column> = {
-  todo: {
-    id: 'todo',
-    title: 'To Do',
-    taskIds: ['task-1', 'task-2'],
-  },
+  backlog: { id: 'backlog', title: 'Backlog', taskIds: [] },
+  todo: { id: 'todo', title: 'Zu erledigen', taskIds: ['task-1'] },
   inprogress: {
     id: 'inprogress',
-    title: 'In Progress',
-    taskIds: [],
+    title: 'In Bearbeitung',
+    taskIds: ['task-2'],
   },
-  done: {
-    id: 'done',
-    title: 'Done',
-    taskIds: ['task-3'],
-  },
+  review: { id: 'review', title: 'Review', taskIds: ['task-3'] },
+  done: { id: 'done', title: 'Done', taskIds: [] },
 };
 
-const initialColumnOrder = ['todo', 'inprogress', 'done'];
+const initialColumnOrder = ['backlog', 'todo', 'inprogress', 'review', 'done'];
 
 function TaskCard({ task, onEdit }: { task: Task; onEdit: (t: Task) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -106,7 +101,7 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: (t: Task) => void }) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`mb-2 cursor-pointer rounded border bg-white p-2 shadow ${deadlineClass}`}
+      className={`mb-2 cursor-pointer rounded border bg-white p-2 shadow-sm ${deadlineClass}`}
       onClick={() => onEdit(task)}
     >
       <div className="font-medium">{task.title}</div>
@@ -119,13 +114,13 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: (t: Task) => void }) {
         </span>
         {task.dueDate && (
           <span className="rounded bg-gray-200 px-1 text-gray-700">
-            Fällig {task.dueDate}
+            Fällig {new Date(task.dueDate).toLocaleDateString('de-CH')}
           </span>
         )}
       </div>
       {task.emails && task.emails.length > 0 && (
-        <div className="mt-1 text-xs text-blue-600">
-          📎 {task.emails.length} Mail{task.emails.length > 1 ? 's' : ''}
+        <div className="mt-1 flex items-center gap-1 text-xs text-blue-600">
+          <Paperclip className="h-3 w-3" /> {task.emails.length} Mail
         </div>
       )}
     </div>
@@ -153,14 +148,22 @@ function ColumnComponent({
       style={style}
       {...attributes}
       {...listeners}
-      className="flex w-1/3 flex-col rounded bg-gray-100 p-4"
+      className="flex min-w-[260px] flex-1 flex-col rounded border bg-gray-50 p-4"
     >
-      <h2 className="mb-4 text-lg font-semibold">{column.title}</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">{column.title}</h2>
+        <span className="text-xl text-gray-500">…</span>
+      </div>
       <SortableContext items={column.taskIds}>
         {tasks.map((task) => (
           <TaskCard key={task.id} task={task} onEdit={onEditTask} />
         ))}
       </SortableContext>
+      {tasks.length === 0 && (
+        <div className="mt-2 text-sm text-gray-500">
+          Keine Aufgaben. Ziehe Aufgaben hierher
+        </div>
+      )}
     </div>
   );
 }
@@ -323,6 +326,8 @@ export function KanbanBoard() {
   const [editing, setEditing] = useState<Task | null>(null);
   const [filterDivision, setFilterDivision] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [search, setSearch] = useState('');
 
   const addColumn = (title: string) => {
     const id = `col-${Date.now()}`;
@@ -439,59 +444,80 @@ export function KanbanBoard() {
 
   return (
     <DndContext collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-      <div className="mb-4 flex items-center gap-2">
-        <button
-          className="bg-green-500 px-2 text-white"
-          onClick={() =>
-            setEditing({
-              id: '',
-              title: '',
-              division: divisions[0],
-              priority: 'low',
-              emails: [],
-            })
-          }
-        >
-          Neue Aufgabe
-        </button>
-        <select
-          value={filterDivision}
-          onChange={(e) => setFilterDivision(e.target.value)}
-          className="border p-1"
-        >
-          <option value="">Alle Abt.</option>
-          {divisions.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-        <select
-          value={filterPriority}
-          onChange={(e) => setFilterPriority(e.target.value)}
-          className="border p-1"
-        >
-          <option value="">Alle Prior.</option>
-          <option value="low">low</option>
-          <option value="medium">medium</option>
-          <option value="high">high</option>
-          <option value="urgent">urgent</option>
-        </select>
-        <button
-          className="ml-auto border px-2"
-          onClick={openSettingsWindow}
-        >
-          Einstellungen
-        </button>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Kanban Board</h1>
+        <div className="flex items-center gap-2">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Suchen..."
+            className="rounded border px-2 py-1"
+          />
+          <button
+            className="flex items-center gap-1 rounded border px-2 py-1"
+            onClick={() => setShowFilters((v) => !v)}
+          >
+            <Filter className="h-4 w-4" /> Filter
+          </button>
+          <button
+            className="flex items-center gap-1 rounded bg-blue-600 px-3 py-1 text-white"
+            onClick={() =>
+              setEditing({
+                id: '',
+                title: '',
+                division: divisions[0],
+                priority: 'low',
+                emails: [],
+              })
+            }
+          >
+            <Plus className="h-4 w-4" /> Neu (N)
+          </button>
+          <button
+            className="rounded border p-2"
+            onClick={openSettingsWindow}
+            aria-label="Einstellungen"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
+        </div>
       </div>
+      {showFilters && (
+        <div className="mb-4 flex gap-2">
+          <select
+            value={filterDivision}
+            onChange={(e) => setFilterDivision(e.target.value)}
+            className="border p-1"
+          >
+            <option value="">Alle Abt.</option>
+            {divisions.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value)}
+            className="border p-1"
+          >
+            <option value="">Alle Prior.</option>
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+            <option value="urgent">urgent</option>
+          </select>
+        </div>
+      )}
       <SortableContext items={columnOrder}>
-        <div className="flex w-full gap-4">
+        <div className="flex w-full gap-4 overflow-x-auto">
           {columnOrder.map((columnId) => {
             const column = columns[columnId];
             const taskList = column.taskIds
               .map((id) => tasks[id])
               .filter((t) => t && (!filterDivision || t.division === filterDivision))
-              .filter((t) => t && (!filterPriority || t.priority === filterPriority));
+              .filter((t) => t && (!filterPriority || t.priority === filterPriority))
+              .filter((t) => t && t.title.toLowerCase().includes(search.toLowerCase()));
             return (
               <ColumnComponent
                 key={column.id}
