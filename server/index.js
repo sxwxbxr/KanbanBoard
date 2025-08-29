@@ -1,6 +1,7 @@
 /* eslint-env node */
 import express from 'express';
 import cors from 'cors';
+
 import { readFileSync } from 'fs';
 import sql from 'mssql';
 
@@ -26,6 +27,7 @@ app.use(express.json());
 
 app.get('/board', async (req, res) => {
   try {
+
     const columnRows = (
       await pool.request().query('SELECT id, title FROM columns ORDER BY position')
     ).recordset;
@@ -69,12 +71,14 @@ app.get('/board', async (req, res) => {
     }
 
     res.json({ tasks, columns, columnOrder });
+
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
 app.post('/board', async (req, res) => {
+
   const { tasks, columns, columnOrder } = req.body;
   const tx = new sql.Transaction(pool);
   try {
@@ -121,6 +125,7 @@ app.post('/board', async (req, res) => {
     res.sendStatus(200);
   } catch (e) {
     await tx.rollback();
+
     res.status(500).json({ error: e.message });
   }
 });
