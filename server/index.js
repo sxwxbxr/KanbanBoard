@@ -9,7 +9,6 @@ const pool = new sql.ConnectionPool({
   password: process.env.DB_PASSWORD || '1234',
   server: process.env.DB_HOST || 'localhost',        // host only
   database: process.env.DB_DATABASE || 'KanbanBoard',
-  port: Number(process.env.DB_PORT) || 1433,
   options: {
     instanceName: 'SQLEXPRESS',                      // instance specified here
     encrypt: false,
