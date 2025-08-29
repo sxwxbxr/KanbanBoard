@@ -7,7 +7,7 @@ import sql from 'mssql';
 const pool = new sql.ConnectionPool({
   user: process.env.DB_USER || 'sa',
   password: process.env.DB_PASSWORD || '1234',
-  server: process.env.DB_HOST || 'localhost',        // host only
+  server: process.env.DB_HOST || '127.0.0.1',        // host only
   database: process.env.DB_DATABASE || 'KanbanBoard',
   options: {
     instanceName: 'SQLEXPRESS',                      // instance specified here
@@ -16,6 +16,7 @@ const pool = new sql.ConnectionPool({
   }
 });
 const poolConnect = pool.connect();
+await poolConnect;
 
 async function init() {
   await pool.connect();
@@ -29,11 +30,10 @@ app.use(cors());
 app.use(express.json());
 
 
-app.get('/board', async (req, res) => {
-  await poolConnect; // ensures the pool is ready
-  // …
+  app.use((req, res, next) => {
+  console.log(req.method, req.url);
+  next();
 });
-
 
 app.get('/board', async (req, res) => {
   try {
@@ -140,8 +140,5 @@ const port = process.env.PORT || 3001;
 
   app.listen(port, () => console.log(`server on ${port}`));
 
-  app.use((req, res, next) => {
-  console.log(req.method, req.url);
-  next();
-});
+
 
