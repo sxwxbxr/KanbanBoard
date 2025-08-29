@@ -12,15 +12,6 @@ const pool = new sql.ConnectionPool({
   database: process.env.DB_DATABASE || 'KanbanBoard',
   options: { encrypt: false, trustServerCertificate: true },
 });
-const config = {
-  user: process.env.MSSQL_USER || 'sa',
-  password: process.env.MSSQL_PASSWORD || '1234',
-  server: process.env.MSSQL_SERVER || 'localhost\\SQLEXPRESS',
-  database: process.env.MSSQL_DB || 'KanbanBoard',
-  options: {
-    trustServerCertificate: true,
-  },
-};
 
 const pool = new mssql.ConnectionPool(config);
 const poolConnect = pool.connect();
