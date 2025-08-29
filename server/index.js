@@ -6,10 +6,10 @@ import sql from 'mssql';
 
 const pool = new sql.ConnectionPool({
   user: process.env.DB_USER || 'sa',
-  password: process.env.DB_PASSWORD || 'YourStrong!Passw0rd',
+  password: process.env.DB_PASSWORD || '1234',
   server: process.env.DB_HOST || 'localhost',
   port: Number(process.env.DB_PORT) || 1433,
-  database: process.env.DB_DATABASE || 'kanban',
+  database: process.env.DB_DATABASE || 'KanbanBoard',
   options: { encrypt: false, trustServerCertificate: true },
 });
 
