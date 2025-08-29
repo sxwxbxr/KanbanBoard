@@ -7,13 +7,15 @@ import sql from 'mssql';
 const pool = new sql.ConnectionPool({
   user: process.env.DB_USER || 'sa',
   password: process.env.DB_PASSWORD || '1234',
-  server: process.env.DB_HOST || 'localhost\\SQLEXPRESS',
-  port: Number(process.env.DB_PORT) || 1433,
+  server: process.env.DB_HOST || 'localhost',        // host only
   database: process.env.DB_DATABASE || 'KanbanBoard',
-  options: { encrypt: false, trustServerCertificate: true },
+  port: Number(process.env.DB_PORT) || 1433,
+  options: {
+    instanceName: 'SQLEXPRESS',                      // instance specified here
+    encrypt: false,
+    trustServerCertificate: true
+  }
 });
-
-const pool = new mssql.ConnectionPool(config);
 const poolConnect = pool.connect();
 
 async function init() {
