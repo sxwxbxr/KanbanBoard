@@ -5,9 +5,9 @@ import mssql from 'mssql';
 
 const config = {
   user: process.env.MSSQL_USER || 'sa',
-  password: process.env.MSSQL_PASSWORD || 'yourStrong(!)Password',
-  server: process.env.MSSQL_SERVER || 'localhost',
-  database: process.env.MSSQL_DB || 'Kanban',
+  password: process.env.MSSQL_PASSWORD || '1234',
+  server: process.env.MSSQL_SERVER || 'localhost\\SQLEXPRESS',
+  database: process.env.MSSQL_DB || 'KanbanBoard',
   options: {
     trustServerCertificate: true,
   },
