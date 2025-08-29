@@ -130,5 +130,5 @@ app.post('/board', async (req, res) => {
   }
 });
 
-const port = process.env.PORT || 1433;
+const port = process.env.PORT || 3001;
 app.listen(port, () => console.log(`server on ${port}`));
